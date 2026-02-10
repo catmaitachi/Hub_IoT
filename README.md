@@ -47,6 +47,15 @@ Hub em Python para controlar dispositivos de iluminação compatíveis com Tuya 
     python -m tinytuya wizard
     ```
 
+7. Inicie a interface gráfica (primeira coisa a ser carregada):
+    ```bash
+    # Opção A
+    python src/interface.py
+
+    # Opção B (módulo)
+    python -m src.interface
+    ```
+
 ## Imagens 📸
 Espaço reservado para futuras screenshots e fluxos do hub.
 
