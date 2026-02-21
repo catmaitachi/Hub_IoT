@@ -35,11 +35,53 @@ class Dispositivo:
     def __init__(self, bulb: BulbDevice):
 
         self.bulb = bulb
+        self.conexao: bool = False
         self.memoria: __Branco__ | __Colorido__ = None
 
-    def get_bulb(self) -> BulbDevice:
+    def obter_bulb(self) -> BulbDevice:
 
         return self.bulb
+
+    def obter_brilho(self) -> int:
+
+        return self.bulb.get_brightness_percentage()
+
+    def definir_brilho(self, porcentagem: int = 100):
+
+        self.bulb.set_mode('white', True)
+        self.bulb.set_brightness_percentage(porcentagem)
+
+        self.salvar_estado()
+
+    def obter_temperatura(self) -> int:
+
+        return self.bulb.get_colourtemp_percentage()
+    
+    def definir_temperatura(self, temperatura: int = 100):
+
+        self.bulb.set_mode('white', True)    
+        self.bulb.set_colourtemp_percentage(temperatura) 
+
+        self.salvar_estado()
+    
+    def obter_cor(self) -> tuple[int, int, int]:
+
+        return self.bulb.colour_rgb()
+    
+    def definir_cor(self, r: int = 255, g: int = 255, b: int = 255):
+        
+        if r == 0 and g == 0 and b == 0: self.desligar()
+
+        else:
+
+            self.bulb.set_mode('colour', True)
+            self.bulb.set_colour(r, g, b)
+
+            self.salvar_estado()
+
+    def obter_modo(self) -> str:
+
+        return self.bulb.get_mode()
 
     def salvar_estado(self):
 
@@ -87,28 +129,15 @@ class Dispositivo:
     def desligar(self):
         
         self.bulb.set_brightness_percentage(0)
+
+    def testar_conexao(self) -> bool:
+
+        try:
+
+            self.bulb.state()
+
+            self.conexao = True
         
-    def definir_brilho(self, porcentagem: int = 100):
+        except Exception as e:
 
-        self.bulb.set_mode('white', True)
-        self.bulb.set_brightness_percentage(porcentagem)
-
-        self.salvar_estado()
-        
-    def definir_temperatura(self, temperatura: int = 100):
-
-        self.bulb.set_mode('white', True)    
-        self.bulb.set_colourtemp_percentage(temperatura) 
-
-        self.salvar_estado()
-
-    def definir_cor(self, r: int = 255, g: int = 255, b: int = 255):
-        
-        if r == 0 and g == 0 and b == 0: self.desligar()
-
-        else:
-
-            self.bulb.set_mode('colour', True)
-            self.bulb.set_colour(r, g, b)
-
-            self.salvar_estado()
+            self.conexao = False

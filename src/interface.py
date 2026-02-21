@@ -3,7 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 import tkinter as tk
 from tkinter import ttk
 
-from conexao import dispositivos_salvos, varredura, testar_conexao, ler_snapshot
+from conexao import dispositivos_salvos, varredura, testar_conexao, _ler_snapshot
 from dispositivo import Dispositivo
 
 # ---- Helpers para cores ----
@@ -196,7 +196,7 @@ class InterfaceApp:
 
 	def _refresh_name_mapping(self):
 		try:
-			snap = ler_snapshot() or []
+			snap = _ler_snapshot() or []
 			mapping: dict[str, str] = {}
 			for d in snap:
 				did = d.get('id')
