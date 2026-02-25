@@ -1,176 +1,69 @@
-from tinytuya import BulbDevice
-from src.models.dispositivo_model import Cor, Branco, DispositivoState
+import threading
+from src.models.controlador_model import BulbState, BulbController
+from src.repositories.controlador_repo import ControladorRepo
 
 class ControladorService:
 
-    def __init__(self, tuya_device: tuple[str, str, BulbDevice]):
+    _instance = None
+    _lock = threading.Lock()
 
-        self._id = tuya_device[0]
-        self._name = tuya_device[1]
-        self._bulb = tuya_device[2]
-        self._conexao: bool = False
-        self._memoria: DispositivoState | None = None
+    def __new__(cls):
 
-    def obter_id(self) -> str:
+        with cls._lock:
 
-        return self._id
-    
-    def obter_nome(self) -> str:
+            if cls._instance is None:
 
-        return self._name
+                cls._instance = super().__new__(cls)
+                cls._instance.repo = ControladorRepo()
 
-    def obter_bulb(self) -> BulbDevice:
+        return cls._instance
 
-        return self._bulb
+    def obter_todos_controladores(self) -> list:
 
-    def obter_brilho(self) -> int:
+        try: 
 
-        try: return self._bulb.get_brightness_percentage()
+            controladores = self.repo.obter_controladores()
 
-        except Exception as e: 
-            
-            self.testar_conexao()
+            return [ self.para_dict(c) for c in controladores ]
 
-            raise Exception("Não foi possível obter o brilho do dispositivo. Verifique a conexão e tente novamente.")
+        except Exception as e: raise Exception(f"Erro ao obter todos os controladores: {str(e)}")
 
-    def definir_brilho(self, porcentagem: int = 100):
+    def obter_controlador_por_id(self, id: str) -> dict:
 
-        try:
+        try: 
 
-            self._bulb.set_mode('white', True)
-            self._bulb.set_brightness_percentage(porcentagem)
+            c = self.repo.obter_controlador_por_id(id)
 
-            self._salvar_estado()
+            return self.para_dict(c)
 
-        except Exception as e:
+        except Exception as e: raise Exception(f"Erro ao obter controlador por ID: {str(e)}")
 
-            self.testar_conexao()
-            
-            raise Exception("Não foi possível definir o brilho do dispositivo. Verifique a conexão e tente novamente.")
+    def pesquisar_por_novos_dispositivos(self):
 
-    def obter_temperatura(self) -> int:
-
-        try: return self._bulb.get_colourtemp_percentage()
-
-        except Exception as e: 
-            
-            self.testar_conexao()
-
-            raise Exception("Não foi possível obter a temperatura do dispositivo. Verifique a conexão e tente novamente.")
-
-    def definir_temperatura(self, temperatura: int = 100):
-
-        try:
-
-            self._bulb.set_mode('white', True)    
-            self._bulb.set_colourtemp_percentage(temperatura) 
-
-            self._salvar_estado()
-
-        except Exception as e:
-
-            self.testar_conexao()
-
-            raise Exception("Não foi possível definir a temperatura do dispositivo. Verifique a conexão e tente novamente.")
-    
-    def obter_cor(self) -> tuple[int, int, int]:
-
-        try: return self._bulb.colour_rgb()
-
-        except Exception as e:
-
-            self.testar_conexao()
-
-            raise Exception("Não foi possível obter a cor do dispositivo. Verifique a conexão e tente novamente.")
-    
-    def definir_cor(self, r: int = 255, g: int = 255, b: int = 255):
+        try: self.repo.atualizar_lista_de_controladores()
         
-        if r == 0 and g == 0 and b == 0: self.desligar()
+        except Exception as e: raise Exception(f"Erro ao atualizar controladores: {str(e)}")
 
-        else:
+    def atualizar_estado_controlador(self, id: str, state: BulbState):
 
-            try:
+        try: self.repo.atualizar_estado_controlador(id, state)
 
-                self._bulb.set_mode('colour', True)
-                self._bulb.set_colour(r, g, b)
-
-            except Exception as e:
-
-                self.testar_conexao()
-
-                raise Exception("Não foi possível definir a cor do dispositivo. Verifique a conexão e tente novamente.")
-
-            self._salvar_estado()
-
-    def obter_modo(self) -> str:
-
-        try: return self._bulb.get_mode()
-
-        except Exception as e: 
-            
-            self.testar_conexao()
-
-            raise Exception("Não foi possível obter o modo do dispositivo. Verifique a conexão e tente novamente.")
-
-    def _salvar_estado(self):
-
-        try:
-
-            if self._bulb.get_mode() == 'white':
-                
-                temperatura = self._bulb.get_colourtemp_percentage()
-                brilho = self._bulb.get_brightness_percentage()
-
-                branco = Branco( temperatura=temperatura, brilho=brilho )
-
-                self._memoria = DispositivoState( modo='white', branco=branco )
-
-            elif self._bulb.get_mode() == 'colour':
-
-                r, g, b = self._bulb.colour_rgb()
-
-                colorido = Cor( r=r, g=g, b=b )
-
-                self._memoria = DispositivoState( modo='colour', cor=colorido )
-
-        except Exception as e:
-
-            print("Não foi possível salvar o estado do dispositivo")
-
-    def recuperar_estado(self):
-
-        try:
-
-            if self._memoria:
-
-                if self._memoria.modo == 'white' and self._memoria.branco:
-
-                    self.definir_brilho(self._memoria.branco.brilho)
-                    self.definir_temperatura(self._memoria.branco.temperatura)
-
-                elif self._memoria.modo == 'colour' and self._memoria.cor:
-
-                    self.definir_cor(self._memoria.cor.r, self._memoria.cor.g, self._memoria.cor.b)
-
-        except Exception as e:
-
-            print("Não foi possível recuperar o estado do dispositivo")
-
-    def desligar(self):
+        except (FileNotFoundError, ValueError, ConnectionError): raise
+        except Exception as e: raise Exception(f"Erro ao atualizar estado do controlador: {str(e)}")
         
-        try: self._bulb.set_brightness_percentage(0)
+    def para_dict( self, c: BulbController ) -> dict:
 
-        except Exception as e:
+        return {
 
-            self.testar_conexao()
+            "id"        : c.id,
+            "name"      : c.name if c.name else None,
+            "mode"      : c.state.mode if c.state else None,
+            "bright"    : c.state.bright if c.state else None,
+            "temp"      : c.state.temp if c.state else None,
+            "r"         : c.state.r if c.state else None,
+            "g"         : c.state.g if c.state else None,
+            "b"         : c.state.b if c.state else None,
+            "connected" : c.connected
 
-            raise Exception("Não foi possível desligar o dispositivo. Verifique a conexão e tente novamente.")
+        }
 
-    def testar_conexao(self) -> bool:
-
-        try:
-
-            self._bulb.state()
-            self._conexao = True
-        
-        except Exception as e: self._conexao = False
